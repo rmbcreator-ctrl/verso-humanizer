@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verso — Settings</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚙️</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css" />
+<link rel="stylesheet" href="/settings.css" />
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <a href="/" class="brand-link" title="Back to Verso">
+        <span class="brand-mark">✒</span>
+        <span class="brand-name">Verso</span>
+      </a>
+      <span class="settings-crumb">/ Settings</span>
+    </div>
+    <div class="topbar-sub" id="topbarStatus">Prompts, models &amp; generation parameters</div>
+  </header>
+
+  <main class="settings-main">
+
+    <!-- Password gate -->
+    <section id="gate" class="gate-card">
+      <div class="gate-icon">🔒</div>
+      <h1>Settings are locked</h1>
+      <p class="gate-copy">This page controls the prompts and models behind every rewrite. Enter the settings password to continue.</p>
+      <form id="gateForm" autocomplete="off">
+        <input type="password" id="gatePassword" placeholder="Password" autocomplete="current-password" />
+        <button type="submit" class="primary-btn">Unlock</button>
+      </form>
+      <div id="gateError" class="gate-error" hidden></div>
+    </section>
+
+    <!-- Settings panel (shown once authenticated) -->
+    <section id="panel" class="settings-panel" hidden>
+
+      <div class="tabs" role="tablist">
+        <button class="tab-btn is-active" data-tab="settings" role="tab">Settings</button>
+        <button class="tab-btn" data-tab="history" role="tab">History</button>
+      </div>
+
+      <div id="tabSettings" class="tab-panel">
+
+      <div class="settings-toolbar">
+        <div id="saveStatus" class="save-status"></div>
+        <div class="settings-toolbar-actions">
+          <button id="resetBtn" class="ghost-btn">Reset to defaults</button>
+          <button id="saveBtn" class="primary-btn">Save changes</button>
+          <button id="logoutBtn" class="ghost-btn">Log out</button>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+
+        <section class="settings-card">
+          <h2>LLM integration</h2>
+          <p class="card-note">The Gemini API key and model IDs used for every stage of the pipeline.</p>
+
+          <label class="field">
+            <span>API key</span>
+            <div class="input-with-toggle">
+              <input type="password" id="apiKey" class="mono" />
+              <button type="button" id="toggleApiKey" class="icon-btn" title="Show/hide">👁</button>
+            </div>
+          </label>
+
+          <p class="card-hint" style="margin-top:0;margin-bottom:16px;">Three model-agnostic tiers — name whatever model IDs you like, the pipeline only ever refers to the tier. <strong>Draft</strong> (the call that determines detector evasion) tries main → flash → lite in order. <strong>Extract/Guard</strong> (mechanical) tries lite → flash. Each step falls back automatically on error or rate limit.</p>
+
+          <label class="field">
+            <span>Main <span class="tier-note">— costliest, best quality, lowest quota</span></span>
+            <input type="text" id="modelMain" class="mono" />
+          </label>
+
+          <label class="field">
+            <span>Flash <span class="tier-note">— mid cost, mid quota</span></span>
+            <input type="text" id="modelFlash" class="mono" />
+          </label>
+
+          <label class="field">
+            <span>Lite <span class="tier-note">— cheapest, highest quota</span></span>
+            <input type="text" id="modelLite" class="mono" />
+          </label>
+        </section>
+
+        <section class="settings-card">
+          <h2>Chunking</h2>
+          <p class="card-note">How input text is split before each chunk runs through the pipeline.</p>
+
+          <label class="field">
+            <span>Max characters per chunk</span>
+            <input type="number" id="maxChunkChars" min="200" max="8000" step="100" />
+          </label>
+        </section>
+
+        <section class="settings-card">
+          <h2>Generation parameters</h2>
+          <p class="card-note">Temperature and top-p per pipeline stage. Higher temperature on the draft stage is what produces real sentence-length variance.</p>
+
+          <div class="param-row">
+            <label class="field field-compact">
+              <span>Extract — temperature</span>
+              <input type="number" id="tempExtract" min="0" max="2" step="0.05" />
+            </label>
+          </div>
+          <div class="param-row">
+            <label class="field field-compact">
+              <span>Draft — temperature</span>
+              <input type="number" id="tempDraft" min="0" max="2" step="0.05" />
+            </label>
+            <label class="field field-compact">
+              <span>Draft — top-p</span>
+              <input type="number" id="topPDraft" min="0" max="1" step="0.01" />
+            </label>
+          </div>
+          <div class="param-row">
+            <label class="field field-compact">
+              <span>Guard — temperature</span>
+              <input type="number" id="tempGuard" min="0" max="2" step="0.05" />
+            </label>
+          </div>
+        </section>
+
+        <section class="settings-card settings-card-wide">
+          <h2>Stage A — Extract prompt</h2>
+          <p class="card-note">Compresses input into content-only notes, discarding the original's sentence structure.</p>
+          <textarea id="promptExtract" class="prompt-textarea" spellcheck="false"></textarea>
+        </section>
+
+        <section class="settings-card settings-card-wide">
+          <h2>Stage B — Draft prompt</h2>
+          <p class="card-note">Writes fresh prose from the notes. Uses placeholders <code>{{INTENSITY_INSTRUCTION}}</code> and <code>{{BANNED_PHRASES}}</code> — keep both somewhere in the text.</p>
+          <textarea id="promptDraft" class="prompt-textarea prompt-textarea-tall" spellcheck="false"></textarea>
+        </section>
+
+        <section class="settings-card settings-card-wide">
+          <h2>Stage C — Guard prompt</h2>
+          <p class="card-note">Checks the draft against the original and fixes only rule violations. Uses the placeholder <code>{{BANNED_PHRASES}}</code>.</p>
+          <textarea id="promptGuard" class="prompt-textarea" spellcheck="false"></textarea>
+        </section>
+
+        <section class="settings-card settings-card-wide">
+          <h2>Intensity levels</h2>
+          <p class="card-note">Appended to the draft prompt in place of <code>{{INTENSITY_INSTRUCTION}}</code>, depending on the slider the author picks.</p>
+          <label class="field">
+            <span>Light</span>
+            <textarea id="intensityLight" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
+          </label>
+          <label class="field">
+            <span>Balanced</span>
+            <textarea id="intensityBalanced" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
+          </label>
+          <label class="field">
+            <span>Thorough</span>
+            <textarea id="intensityThorough" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
+          </label>
+        </section>
+
+        <section class="settings-card settings-card-wide">
+          <h2>Banned phrases</h2>
+          <p class="card-note">Comma-separated. Enforced by the draft and guard prompts as documented AI-writing tells.</p>
+          <textarea id="bannedPhrases" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
+        </section>
+
+      </div>
+      </div><!-- /tabSettings -->
+
+      <div id="tabHistory" class="tab-panel" hidden>
+        <div class="settings-toolbar">
+          <div id="historyStatus" class="save-status">
+            <span id="historyCountLabel"></span>
+          </div>
+          <div class="settings-toolbar-actions">
+            <button id="historyRefreshBtn" class="ghost-btn">Refresh</button>
+            <button id="historyClearBtn" class="ghost-btn">Clear all history</button>
+          </div>
+        </div>
+
+        <div id="historyList" class="history-list">
+          <p class="history-empty">Loading…</p>
+        </div>
+      </div><!-- /tabHistory -->
+
+    </section>
+  </main>
+</div>
+
+<!-- History entry detail modal -->
+<div id="historyModal" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <div id="modalTimestamp" class="modal-timestamp"></div>
+        <div id="modalMeta" class="modal-meta"></div>
+      </div>
+      <button id="modalCloseBtn" class="icon-btn" title="Close">✕</button>
+    </div>
+    <div class="modal-columns">
+      <div class="modal-col">
+        <div class="modal-col-head">
+          <span>Original</span>
+          <button class="icon-text-btn modal-copy-btn" data-target="original"><span class="btn-text">Copy</span></button>
+        </div>
+        <pre id="modalOriginal" class="modal-text"></pre>
+      </div>
+      <div class="modal-col">
+        <div class="modal-col-head">
+          <span>Humanized</span>
+          <button class="icon-text-btn modal-copy-btn" data-target="humanized"><span class="btn-text">Copy</span></button>
+        </div>
+        <pre id="modalHumanized" class="modal-text"></pre>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="modalDownloadBtn" class="ghost-btn">Download humanized .txt</button>
+      <button id="modalDeleteBtn" class="ghost-btn modal-delete-btn">Delete this entry</button>
+    </div>
+  </div>
+</div>
+
+<script src="/settings.js"></script>
+</body>
+</html>
