@@ -315,21 +315,59 @@
     return merged;
   }
 
-  function renderDiffParagraph(original, rewritten) {
+  // Renders one diffed op-stream as a fragment of Markdown source, with the
+  // diff spans riding along as raw <ins>/<del> HTML. escapeHtml only touches
+  // &, <, > — every Markdown syntax character (#, *, |, $, -) passes through
+  // untouched — so this is valid Markdown source, not just escaped diff
+  // text. marked treats <ins>/<del> as inline HTML passthrough and parses
+  // everything else (headings, lists, tables, emphasis) normally around
+  // them.
+  function diffToMarkdown(original, rewritten) {
     const ops = diffWords(original, rewritten);
-    let html = '';
+    let diffMarkdown = '';
     for (const op of ops) {
       const safe = escapeHtml(op.text);
-      if (op.type === 'eq') html += safe;
-      else if (op.type === 'add') html += `<ins>${safe}</ins>`;
-      else html += `<del>${safe}</del>`;
+      if (op.type === 'eq') diffMarkdown += safe;
+      else if (op.type === 'add') diffMarkdown += `<ins>${safe}</ins>`;
+      else diffMarkdown += `<del>${safe}</del>`;
     }
-    const p = document.createElement('p');
-    p.innerHTML = html;
+    return diffMarkdown;
+  }
+
+  function renderDiffParagraph(original, rewritten) {
+    // A "chunk" from the server is often several Markdown blocks packed
+    // together (a heading, then a paragraph, then a list, ...). Diffing the
+    // whole thing as one flat token stream lets the LCS algorithm match
+    // words across unrelated blocks when several small edits happen
+    // throughout the chunk, which can wrap a structural marker like "##",
+    // "-", or "|" in a stray <ins>/<del> — breaking Markdown's rule that
+    // those characters must sit literally at the start of a line. Diffing
+    // block-by-block (blank-line-separated, the same unit protect.js and
+    // the server's chunker already treat as atomic) keeps each block's
+    // local diff self-contained, so markers stay put.
+    const originalBlocks = original.split(/\n{2,}/);
+    const rewrittenBlocks = rewritten.split(/\n{2,}/);
+    const diffMarkdown =
+      originalBlocks.length === rewrittenBlocks.length
+        ? originalBlocks.map((b, i) => diffToMarkdown(b, rewrittenBlocks[i])).join('\n\n')
+        : diffToMarkdown(original, rewritten); // block counts drifted — fall back to a single whole-chunk diff
 
     const block = document.createElement('div');
     block.className = 'output-block';
-    block.appendChild(p);
+    block.innerHTML = marked.parse(diffMarkdown);
+    try {
+      renderMathInElement(block, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '\\(', right: '\\)', display: false },
+        ],
+        throwOnError: false,
+      });
+    } catch {
+      // KaTeX not available or nothing to render — the diffed text is still fine.
+    }
 
     const copyParaBtn = document.createElement('button');
     copyParaBtn.type = 'button';
@@ -363,7 +401,9 @@
 
   function renderOutput() {
     const showDiff = diffToggle.checked;
-    outputText.classList.toggle('rendered', !showDiff);
+    // Both diff and clean views render real Markdown now, so the heading/
+    // list/table styles under .rendered apply either way.
+    outputText.classList.add('rendered');
 
     if (showDiff) {
       outputText.innerHTML = '';
@@ -417,7 +457,7 @@
     protectedNote.hidden = true;
     protectedNote.textContent = '';
     chunkRecords = [];
-    outputText.classList.remove('rendered');
+    outputText.classList.add('rendered');
     outputText.innerHTML = '';
     copyBtn.disabled = true;
     downloadBtn.disabled = true;
