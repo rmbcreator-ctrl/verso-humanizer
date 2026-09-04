@@ -183,8 +183,8 @@ function buildGuardPrompt(config) {
   return config.prompts.guard.replace('{{BANNED_PHRASES}}', config.bannedPhrases.join(', '));
 }
 
-async function postGenerateContent(config, model, generationConfig, systemPrompt, userText) {
-  const url = `${API_BASE}/${model}:generateContent?key=${config.apiKey}`;
+async function postGenerateContent(apiKey, model, generationConfig, systemPrompt, userText) {
+  const url = `${API_BASE}/${model}:generateContent?key=${apiKey}`;
   const body = {
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ role: 'user', parts: [{ text: userText }] }],
@@ -201,6 +201,25 @@ async function postGenerateContent(config, model, generationConfig, systemPrompt
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+}
+
+// ---------------------------------------------------------------------------
+// API key rotation — up to 5 keys, configured in Settings. `apiKeyCursor` is
+// "the key we currently believe works": every callGemini() starts there, and
+// only moves on when that key comes back rate-limited (HTTP 429), so calls
+// stay sticky on one key instead of round-robining every request. Once it
+// moves past a rate-limited key, it stays moved — every subsequent call
+// (across every remaining chunk, and every extract/draft/guard stage within
+// them) starts from the new position, so no further request wastes a round
+// trip on a key already known to be capped. It's process-wide, in-memory
+// (module-level, not per-request) and intentionally not persisted: a fresh
+// process should retry from key #1 rather than remember yesterday's outage.
+let apiKeyCursor = 0;
+
+function getApiKeys(config) {
+  // `config.apiKeys` is sanitized (trimmed, deduped-blank, capped at 5) by
+  // config-store.js on every load and save, so this trusts it as-is.
+  return config.apiKeys || [];
 }
 
 async function callGemini(config, model, systemPrompt, userText, generationOverrides) {
@@ -221,17 +240,40 @@ async function callGemini(config, model, systemPrompt, userText, generationOverr
     generationOverrides || {}
   );
 
-  let res = await postGenerateContent(config, model, generationConfig, systemPrompt, userText);
+  const keys = getApiKeys(config);
+  if (!keys.length) throw new Error('No Gemini API key configured — add one in Settings.');
 
-  // Defensive fallback, kept for whenever a caller does pass thinkingConfig
-  // explicitly: silently retry once without it rather than hard-failing a
-  // model-specific quirk.
-  if (res.status === 400 && generationConfig.thinkingConfig) {
-    const errText = await res.text().catch(() => '');
-    console.error(`[${model}] 400 with thinkingConfig set, retrying without it: ${errText.slice(0, 150)}`);
-    const { thinkingConfig, ...withoutThinking } = generationConfig;
-    res = await postGenerateContent(config, model, withoutThinking, systemPrompt, userText);
+  let res;
+  let usedKeyIndex = apiKeyCursor % keys.length;
+  for (let attempt = 0; attempt < keys.length; attempt++) {
+    usedKeyIndex = (apiKeyCursor + attempt) % keys.length;
+    const key = keys[usedKeyIndex];
+    res = await postGenerateContent(key, model, generationConfig, systemPrompt, userText);
+
+    // Defensive fallback, kept for whenever a caller does pass thinkingConfig
+    // explicitly: silently retry once without it rather than hard-failing a
+    // model-specific quirk. Same key — this isn't a rate-limit issue.
+    if (res.status === 400 && generationConfig.thinkingConfig) {
+      const errText = await res.text().catch(() => '');
+      console.error(`[${model}] 400 with thinkingConfig set, retrying without it: ${errText.slice(0, 150)}`);
+      const { thinkingConfig, ...withoutThinking } = generationConfig;
+      res = await postGenerateContent(key, model, withoutThinking, systemPrompt, userText);
+    }
+
+    if (res.status !== 429) break;
+
+    const isLastKey = attempt === keys.length - 1;
+    console.error(
+      `[${model}] API key #${usedKeyIndex + 1}/${keys.length} rate-limited (429)` +
+        (isLastKey ? ' — all configured keys are rate-limited' : ' — rotating to the next key')
+    );
   }
+  // Land the cursor on whichever key we last tried: a success or a
+  // non-429 error sticks there for next time; if every key came back
+  // 429, this just wraps back to where we started, which is fine — the
+  // next call will re-probe from key #1 and the model-tier fallback in
+  // callWithChain takes over from here.
+  apiKeyCursor = usedKeyIndex;
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');

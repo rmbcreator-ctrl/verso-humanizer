@@ -11,7 +11,11 @@
   const logoutBtn = document.getElementById('logoutBtn');
 
   const fields = {
-    apiKey: document.getElementById('apiKey'),
+    apiKey1: document.getElementById('apiKey1'),
+    apiKey2: document.getElementById('apiKey2'),
+    apiKey3: document.getElementById('apiKey3'),
+    apiKey4: document.getElementById('apiKey4'),
+    apiKey5: document.getElementById('apiKey5'),
     modelMain: document.getElementById('modelMain'),
     modelFlash: document.getElementById('modelFlash'),
     modelLite: document.getElementById('modelLite'),
@@ -30,7 +34,12 @@
   };
 
   function configToFields(config) {
-    fields.apiKey.value = config.apiKey || '';
+    const keys = config.apiKeys || [];
+    fields.apiKey1.value = keys[0] || '';
+    fields.apiKey2.value = keys[1] || '';
+    fields.apiKey3.value = keys[2] || '';
+    fields.apiKey4.value = keys[3] || '';
+    fields.apiKey5.value = keys[4] || '';
     fields.modelMain.value = config.models.main || '';
     fields.modelFlash.value = config.models.flash || '';
     fields.modelLite.value = config.models.lite || '';
@@ -50,7 +59,9 @@
 
   function fieldsToConfig() {
     return {
-      apiKey: fields.apiKey.value.trim(),
+      apiKeys: [fields.apiKey1, fields.apiKey2, fields.apiKey3, fields.apiKey4, fields.apiKey5]
+        .map((f) => f.value.trim())
+        .filter(Boolean),
       models: {
         main: fields.modelMain.value.trim(),
         flash: fields.modelFlash.value.trim(),
@@ -141,8 +152,11 @@
     }
   });
 
-  document.getElementById('toggleApiKey').addEventListener('click', () => {
-    fields.apiKey.type = fields.apiKey.type === 'password' ? 'text' : 'password';
+  document.querySelectorAll('.toggle-key').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    });
   });
 
   function setStatus(text, kind) {

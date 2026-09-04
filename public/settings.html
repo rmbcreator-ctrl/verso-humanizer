@@ -64,11 +64,45 @@
           <h2>LLM integration</h2>
           <p class="card-note">The Gemini API key and model IDs used for every stage of the pipeline.</p>
 
+          <p class="card-hint" style="margin-bottom:8px;">Up to 5 Gemini API keys. When the key in use gets rate-limited (HTTP 429), Verso automatically rotates to the next one — no restart needed. Only Key 1 is required.</p>
+
           <label class="field">
-            <span>API key</span>
+            <span>Key 1</span>
             <div class="input-with-toggle">
-              <input type="password" id="apiKey" class="mono" />
-              <button type="button" id="toggleApiKey" class="icon-btn" title="Show/hide">👁</button>
+              <input type="password" id="apiKey1" class="mono" />
+              <button type="button" class="icon-btn toggle-key" data-target="apiKey1" title="Show/hide">👁</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Key 2 <span class="tier-note">— optional</span></span>
+            <div class="input-with-toggle">
+              <input type="password" id="apiKey2" class="mono" />
+              <button type="button" class="icon-btn toggle-key" data-target="apiKey2" title="Show/hide">👁</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Key 3 <span class="tier-note">— optional</span></span>
+            <div class="input-with-toggle">
+              <input type="password" id="apiKey3" class="mono" />
+              <button type="button" class="icon-btn toggle-key" data-target="apiKey3" title="Show/hide">👁</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Key 4 <span class="tier-note">— optional</span></span>
+            <div class="input-with-toggle">
+              <input type="password" id="apiKey4" class="mono" />
+              <button type="button" class="icon-btn toggle-key" data-target="apiKey4" title="Show/hide">👁</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Key 5 <span class="tier-note">— optional</span></span>
+            <div class="input-with-toggle">
+              <input type="password" id="apiKey5" class="mono" />
+              <button type="button" class="icon-btn toggle-key" data-target="apiKey5" title="Show/hide">👁</button>
             </div>
           </label>
 

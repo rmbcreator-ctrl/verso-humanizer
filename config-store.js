@@ -11,10 +11,15 @@ const CONFIG_PATH = path.join(__dirname, 'data', 'config.json');
 // persisted to data/config.json and merged over these defaults on load.
 // ---------------------------------------------------------------------------
 const DEFAULTS = {
-  // Sourced from the GEMINI_API_KEY environment variable (.env locally, or
-  // however the host platform injects secrets). No literal fallback — never
-  // hardcode a key in source that may end up in a public repo.
-  apiKey: process.env.GEMINI_API_KEY || '',
+  // Up to 5 Gemini API keys, tried in order. server.js rotates to the next
+  // one automatically whenever the current key comes back rate-limited
+  // (HTTP 429), so a single free-tier key's RPM/RPD cap doesn't stall the
+  // pipeline once more keys are on file — see apiKeyCursor in server.js.
+  // GEMINI_API_KEY (.env locally, or however the host platform injects
+  // secrets) seeds the first slot so a bare .env keeps working with zero
+  // settings-page setup. No literal fallback — never hardcode a key in
+  // source that may end up in a public repo.
+  apiKeys: [process.env.GEMINI_API_KEY || ''].filter(Boolean),
   // ---------------------------------------------------------------------
   // Models — three cost/quality tiers, model-agnostic. You name whatever
   // model IDs you want for each tier here; the pipeline only ever refers to
@@ -177,12 +182,26 @@ function deepMerge(base, override) {
   return override === undefined ? base : override;
 }
 
+// Trims, drops blanks, and caps at 5 — the settings page renders exactly 5
+// key inputs, and callGemini's rotation loop in server.js assumes the array
+// it's handed is already this clean.
+function sanitizeApiKeys(keys) {
+  return (Array.isArray(keys) ? keys : []).map((k) => String(k || '').trim()).filter(Boolean).slice(0, 5);
+}
+
 let current = DEFAULTS;
 
 function load() {
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+      // Migrate the pre-multi-key single `apiKey` field: only when the
+      // saved file predates `apiKeys` entirely, so it never clobbers a
+      // multi-key setup someone already saved through the new settings UI.
+      if (!raw.apiKeys && raw.apiKey) {
+        raw.apiKeys = [raw.apiKey];
+      }
+      if (raw.apiKeys) raw.apiKeys = sanitizeApiKeys(raw.apiKeys);
       current = deepMerge(DEFAULTS, raw);
     } else {
       current = DEFAULTS;
@@ -204,6 +223,7 @@ function getConfig() {
 }
 
 function updateConfig(partial) {
+  if (partial && partial.apiKeys) partial = { ...partial, apiKeys: sanitizeApiKeys(partial.apiKeys) };
   current = deepMerge(current, partial);
   persist();
   return current;
