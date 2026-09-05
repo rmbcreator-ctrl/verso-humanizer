@@ -201,6 +201,34 @@ body {
 .rich-input img { display: none; } /* images aren't part of the text pipeline */
 .rich-input * { max-width: 100%; font-family: inherit; color: inherit; background: transparent; }
 
+.style-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.style-label {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.style-select {
+  flex: 1;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: none;
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
 .controls {
   display: flex;
   align-items: center;

@@ -41,11 +41,22 @@
         data-placeholder="Paste your AI-assisted draft here — straight from Word, Google Docs, or a webpage. Formatting comes with it, and any LaTeX formulas ($E=mc^2$) or tables stay exactly as written. Verso only rewrites the prose around them."
       ></div>
 
+      <div class="style-row">
+        <label class="style-label" for="styleSelect">Writing style</label>
+        <select id="styleSelect" class="style-select">
+          <option value="academic" selected>Academic Research Paper</option>
+          <option value="author">Author (personal voice)</option>
+          <option value="legal">Formal Legal</option>
+          <option value="business">Business / Corporate Memo</option>
+          <option value="journalistic">Journalistic / News Feature</option>
+        </select>
+      </div>
+
       <div class="controls">
         <div class="intensity" role="radiogroup" aria-label="Editing intensity">
           <button class="intensity-btn" data-value="light">Light</button>
-          <button class="intensity-btn is-active" data-value="balanced">Balanced</button>
-          <button class="intensity-btn" data-value="thorough">Thorough</button>
+          <button class="intensity-btn" data-value="balanced">Balanced</button>
+          <button class="intensity-btn is-active" data-value="thorough">Thorough</button>
         </div>
         <button id="humanizeBtn" class="primary-btn">
           <span class="btn-label">Humanize</span>

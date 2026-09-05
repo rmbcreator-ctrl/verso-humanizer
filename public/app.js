@@ -16,8 +16,9 @@
   const errorNote = document.getElementById('errorNote');
   const protectedNote = document.getElementById('protectedNote');
   const intensityBtns = Array.from(document.querySelectorAll('.intensity-btn'));
+  const styleSelect = document.getElementById('styleSelect');
 
-  let intensity = 'balanced';
+  let intensity = 'thorough';
   let finalText = ''; // Markdown, with formulas/tables restored
   let busy = false;
 
@@ -445,6 +446,7 @@
     btnSpinner.hidden = !state;
     btnLabel.textContent = state ? 'Humanizing…' : 'Humanize';
     intensityBtns.forEach((b) => (b.disabled = state));
+    styleSelect.disabled = state;
   }
 
   async function humanize() {
@@ -471,7 +473,7 @@
       const res = await fetch('/api/humanize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, intensity }),
+        body: JSON.stringify({ text, intensity, style: styleSelect.value }),
       });
 
       if (!res.ok || !res.body) {

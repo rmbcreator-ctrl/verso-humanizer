@@ -172,15 +172,45 @@ app.delete('/api/settings/history', requireAuth, (req, res) => {
 // from the password-protected /settings page.
 // ---------------------------------------------------------------------------
 
-function buildDraftPrompt(config, intensity) {
-  const key = config.intensity[intensity] ? intensity : 'balanced';
-  return config.prompts.draft
-    .replace('{{INTENSITY_INSTRUCTION}}', config.intensity[key])
-    .replace('{{BANNED_PHRASES}}', config.bannedPhrases.join(', '));
+function getStyle(config, styleKey) {
+  return config.styles[styleKey] || config.styles[config.defaultStyle] || config.styles.author;
 }
 
-function buildGuardPrompt(config) {
-  return config.prompts.guard.replace('{{BANNED_PHRASES}}', config.bannedPhrases.join(', '));
+// Merges a style's own tuned banned-phrase list with the user's personal
+// additions (config.bannedPhrases) — never with another style's list, since
+// a phrase banned for one register (e.g. "furthermore" for Author) can be
+// normal, correct usage in another (Academic).
+function bannedPhrasesFor(config, styleKey) {
+  return [...getStyle(config, styleKey).bannedPhrases, ...(config.bannedPhrases || [])];
+}
+
+function buildDraftPrompt(config, intensity, styleKey) {
+  const key = config.intensity[intensity] ? intensity : 'balanced';
+  const style = getStyle(config, styleKey);
+  return config.prompts.draft
+    .replace('{{STYLE_INSTRUCTION}}', style.instruction)
+    .replace('{{CONTRACTIONS_RULE}}', style.contractionsRule)
+    .replace('{{PUNCTUATION_RULE}}', style.punctuationRule)
+    .replace('{{INTENSITY_INSTRUCTION}}', config.intensity[key])
+    .replace('{{BANNED_PHRASES}}', bannedPhrasesFor(config, styleKey).join(', '));
+}
+
+// Shared across every style that opts in via `symmetryRule: true` — the
+// "not just X, it's Y" tell shows up regardless of register, so unlike
+// endingRule/extraChecks (genuinely register-specific) this one rule text
+// is fixed, not user-editable per style.
+const SYMMETRY_GUARD_RULE =
+  'No sentence should mechanically resolve a single tidy idea in a "not just X, it\'s Y" or perfectly symmetrical construction. If you find one, break the symmetry.';
+
+function buildGuardPrompt(config, styleKey) {
+  const style = getStyle(config, styleKey);
+  const styleRules = [style.endingRule, style.symmetryRule ? SYMMETRY_GUARD_RULE : null, ...(style.extraChecks || [])]
+    .filter(Boolean)
+    .map((text, i) => `${i + 4}. ${text}`)
+    .join('\n');
+  return config.prompts.guard
+    .replace('{{BANNED_PHRASES}}', bannedPhrasesFor(config, styleKey).join(', '))
+    .replace('{{STYLE_RULES}}', styleRules);
 }
 
 async function postGenerateContent(apiKey, model, generationConfig, systemPrompt, userText) {
@@ -323,11 +353,11 @@ async function callWithChain(config, tierChain, systemPrompt, userText, generati
   throw lastErr || new Error('No models configured for this stage.');
 }
 
-async function guardPass(config, original, rewritten) {
+async function guardPass(config, original, rewritten, styleKey) {
   return await callWithChain(
     config,
     EXTRACT_GUARD_CHAIN,
-    buildGuardPrompt(config),
+    buildGuardPrompt(config, styleKey),
     `ORIGINAL:\n"""${original}"""\n\nREWRITE:\n"""${rewritten}"""`,
     { temperature: config.generation.guard.temperature }
   );
@@ -408,7 +438,7 @@ async function humanizeHeadingChunk(config, hashes, headingBody, fullOriginal) {
   return { text: `${hashes} ${singleLine}`, protectedPassthrough: false };
 }
 
-async function humanizeChunk(config, text, intensity, precedingContext, chunkType) {
+async function humanizeChunk(config, text, intensity, precedingContext, chunkType, styleKey) {
   // A chunk that's nothing but protected placeholders (e.g. a standalone
   // table) never needs to touch the LLM: zero prose to humanize, zero risk,
   // zero API cost.
@@ -440,7 +470,7 @@ async function humanizeChunk(config, text, intensity, precedingContext, chunkTyp
     const lines = text.split('\n');
     if (lines.every((l) => /^>\s?/.test(l) || l.trim() === '')) {
       const stripped = lines.map((l) => l.replace(/^>\s?/, '')).join('\n');
-      const result = await humanizeProseChunk(config, stripped, intensity, precedingContext);
+      const result = await humanizeProseChunk(config, stripped, intensity, precedingContext, styleKey);
       const requoted = result.text
         .split('\n')
         .map((l) => (l ? `> ${l}` : '>'))
@@ -450,7 +480,7 @@ async function humanizeChunk(config, text, intensity, precedingContext, chunkTyp
     // Not uniformly quoted (mixed content) — fall through to normal prose.
   }
 
-  return await humanizeProseChunk(config, text, intensity, precedingContext);
+  return await humanizeProseChunk(config, text, intensity, precedingContext, styleKey);
 }
 
 async function humanizeListChunk(config, text) {
@@ -490,7 +520,7 @@ async function humanizeListChunk(config, text) {
 // always safe to use — either the humanized rewrite, or (if the chunk was
 // pure protected content, or the protection integrity check below failed)
 // the original chunk unchanged.
-async function humanizeProseChunk(config, text, intensity, precedingContext) {
+async function humanizeProseChunk(config, text, intensity, precedingContext, styleKey) {
   if (isPureProtected(text)) {
     return { text, protectedPassthrough: false, skippedProtected: true };
   }
@@ -513,7 +543,7 @@ async function humanizeProseChunk(config, text, intensity, precedingContext) {
   // is the stage that actually determines detector evasion — it gets the
   // best tier first, degrading gracefully through flash then lite as quota
   // runs out.
-  const draftSystem = buildDraftPrompt(config, intensity);
+  const draftSystem = buildDraftPrompt(config, intensity, styleKey);
   const draftUser = precedingContext
     ? `PRECEDING CONTEXT (already written — for voice/flow continuity only, do not repeat or reference it):\n"""${precedingContext}"""\n\nYOUR NOTES:\n"""${notes}"""`
     : `YOUR NOTES:\n"""${notes}"""`;
@@ -525,7 +555,7 @@ async function humanizeProseChunk(config, text, intensity, precedingContext) {
 
   // Stage C: enforce the banned-word / no-grand-finale / no-invented-detail
   // rules directly, checked against the original. Mechanical — cheap tiers.
-  const guarded = await guardPass(config, text, draft);
+  const guarded = await guardPass(config, text, draft, styleKey);
 
   // Deterministic safety net, independent of prompt compliance: if any
   // protected placeholder (formula or table) went missing, got duplicated,
@@ -625,6 +655,7 @@ app.post('/api/humanize', async (req, res) => {
   }
 
   const config = getConfig();
+  const styleKey = config.styles[req.body && req.body.style] ? req.body.style : config.defaultStyle;
 
   // Swap every formula/table/code block out for an opaque placeholder
   // before any of this text reaches an LLM. Chunking, and the pipeline
@@ -655,7 +686,7 @@ app.post('/api/humanize', async (req, res) => {
     const trailingSep = plain.slice(inputText.length);
 
     try {
-      const result = await humanizeChunk(config, inputText, intensity, lastOutputTail, chunks[i].type);
+      const result = await humanizeChunk(config, inputText, intensity, lastOutputTail, chunks[i].type, styleKey);
       const rewritten = result.text;
       fullOutputProtected += rewritten + trailingSep;
       lastOutputTail = rewritten.slice(-220);
@@ -694,7 +725,7 @@ app.post('/api/humanize', async (req, res) => {
   const fullOutput = restore(fullOutputProtected, map);
 
   try {
-    historyStore.append({ intensity, original: text, humanized: fullOutput, hadError });
+    historyStore.append({ intensity, style: styleKey, original: text, humanized: fullOutput, hadError });
   } catch (err) {
     console.error(`[history] failed to log run: ${err.message}`);
   }

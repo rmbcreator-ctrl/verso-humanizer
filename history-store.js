@@ -32,11 +32,12 @@ function countWords(str) {
   return m ? m.length : 0;
 }
 
-function append({ intensity, original, humanized, hadError }) {
+function append({ intensity, style, original, humanized, hadError }) {
   const entry = {
     id: crypto.randomBytes(8).toString('hex'),
     timestamp: new Date().toISOString(),
     intensity: intensity || 'balanced',
+    style: style || 'academic',
     original,
     humanized,
     wordsBefore: countWords(original),
