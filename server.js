@@ -516,6 +516,33 @@ async function humanizeListChunk(config, text) {
   return { text: rewritten, protectedPassthrough: false };
 }
 
+// Bag-of-words overlap, ignoring order — a cheap, deterministic proxy for
+// "did this actually get rewritten." A real paraphrase changes structure
+// and word choice enough that overlap drops well below this; near-1.0
+// means the rewrite is essentially the same sentence back, word for word
+// (order-blind, so it also catches a rewrite that's just the original
+// with two clauses swapped).
+function wordOverlapRatio(a, b) {
+  const wordsOf = (s) => (s.toLowerCase().match(/[a-z0-9']+/g) || []);
+  const wa = wordsOf(a);
+  const wb = wordsOf(b);
+  if (!wa.length || !wb.length) return 0;
+  const countsB = new Map();
+  for (const w of wb) countsB.set(w, (countsB.get(w) || 0) + 1);
+  let shared = 0;
+  const countsA = new Map();
+  for (const w of wa) countsA.set(w, (countsA.get(w) || 0) + 1);
+  for (const [w, ca] of countsA) {
+    shared += Math.min(ca, countsB.get(w) || 0);
+  }
+  return shared / Math.max(wa.length, wb.length);
+}
+
+function tooSimilarToOriginal(original, rewritten) {
+  if (original.trim() === rewritten.trim()) return true;
+  return wordOverlapRatio(original, rewritten) > 0.8;
+}
+
 // Returns { text, protectedPassthrough, skippedProtected }. `text` is
 // always safe to use — either the humanized rewrite, or (if the chunk was
 // pure protected content, or the protection integrity check below failed)
@@ -548,14 +575,40 @@ async function humanizeProseChunk(config, text, intensity, precedingContext, sty
     ? `PRECEDING CONTEXT (already written — for voice/flow continuity only, do not repeat or reference it):\n"""${precedingContext}"""\n\nYOUR NOTES:\n"""${notes}"""`
     : `YOUR NOTES:\n"""${notes}"""`;
 
-  const draft = await callWithChain(config, DRAFT_CHAIN, draftSystem, draftUser, {
+  let draft = await callWithChain(config, DRAFT_CHAIN, draftSystem, draftUser, {
     temperature: config.generation.draft.temperature,
     topP: config.generation.draft.topP,
   });
 
   // Stage C: enforce the banned-word / no-grand-finale / no-invented-detail
   // rules directly, checked against the original. Mechanical — cheap tiers.
-  const guarded = await guardPass(config, text, draft, styleKey);
+  let guarded = await guardPass(config, text, draft, styleKey);
+
+  // Deterministic anti-passthrough check, independent of prompt compliance:
+  // a genuine rewrite should never come back this close to the source
+  // wording. Observed live against a real AI detector: short, plain,
+  // factual passages can converge to byte-identical (or near-identical)
+  // output with no error and no guard violation -- the model just runs out
+  // of ways to say a two-fact sentence differently and drifts back to the
+  // source's own phrasing. Since undetectable rewriting is this tool's
+  // entire purpose, an untouched AI-drafted sentence surviving into the
+  // output is a hard failure, not an acceptable edge case -- retry once
+  // with an explicit call-out before accepting it.
+  if (tooSimilarToOriginal(text, guarded)) {
+    console.error(`[anti-passthrough] chunk came back too close to source, retrying: "${text.slice(0, 60)}..."`);
+    const retryUser = `${draftUser}\n\nNOTE: A previous attempt at this passage came back nearly identical to the source wording — that is not acceptable, even if the source's phrasing felt like the "natural" way to say it. Restructure completely: different sentence boundaries, different opening word, different word order throughout. Say the same thing a different way.`;
+    const retryDraft = await callWithChain(config, DRAFT_CHAIN, draftSystem, retryUser, {
+      temperature: Math.min(config.generation.draft.temperature + 0.15, 2),
+      topP: config.generation.draft.topP,
+    });
+    const retryGuarded = await guardPass(config, text, retryDraft, styleKey);
+    if (!tooSimilarToOriginal(text, retryGuarded)) {
+      draft = retryDraft;
+      guarded = retryGuarded;
+    } else {
+      console.error('[anti-passthrough] still too close after retry — accepting rather than looping again.');
+    }
+  }
 
   // Deterministic safety net, independent of prompt compliance: if any
   // protected placeholder (formula or table) went missing, got duplicated,

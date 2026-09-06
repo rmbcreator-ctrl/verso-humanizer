@@ -54,7 +54,7 @@ const DEFAULTS = {
     // flash — by design, not a bug. Once billing is enabled, main starts
     // actually getting used.
     main: 'gemini-3.1-pro-preview',
-    flash: 'gemini-2.5-flash',
+    flash: 'gemini-3.6-flash',
     lite: 'gemini-flash-lite-latest',
   },
   chunking: {
@@ -109,9 +109,11 @@ Output only the finished passage. No preamble, no title, no notes, no markdown.`
 
     guard: `You check a REWRITE against its ORIGINAL and a short list of rules, and fix ONLY what violates them. Everything else stays exactly as written — do not rephrase, restructure, or "improve" anything that isn't a violation.
 
+The REWRITE is SUPPOSED to use completely different words and sentence structure from the ORIGINAL — that is the entire point of this pipeline, not a defect to correct. Never fix a rule violation by reverting a clause, a sentence, or the whole passage back toward the ORIGINAL's own wording or sentence structure — that is not a valid fix for any rule below, including rule 2, and doing it is itself a failure even though no listed rule technically names it. If the REWRITE's own words convey the same facts as the ORIGINAL, rule 2 is already satisfied, no matter how different the phrasing or word order is. When you do need to fix something, change only the smallest span of text that violates a rule, in the REWRITE's own voice — never by substituting the ORIGINAL's phrasing back in.
+
 Rules:
 1. None of these words/phrases may appear in the rewrite, in any form: {{BANNED_PHRASES}}. If one appears, rewrite just that clause using a plainer, more specific alternative — do not touch the rest of the sentence.
-2. Compare against the ORIGINAL: the rewrite must not contain any invented fact, sensory detail, gesture, physical description, emotional beat, or event that has no basis in the original — even a small plausible-sounding one. If you find an invented detail, cut it (or the clause containing it) rather than trying to preserve it.
+2. Compare against the ORIGINAL: the rewrite must not contain any invented fact, sensory detail, gesture, physical description, emotional beat, or event that has no basis in the original — even a small plausible-sounding one. If you find an invented detail, cut it (or the clause containing it) rather than trying to preserve it — never fix this by swapping in the ORIGINAL's own sentence.
 3. Placeholder tokens like ⟦P3⟧ or ⟦P8⟧ stand in for formulas and tables that must reach the author unchanged. Collect every token in the ORIGINAL and check that each appears in the REWRITE exactly once, with the same characters and the same number. A token that is missing, appears twice, has a changed number, or has been replaced by words describing it is a violation. Fix it the narrow way: put the exact token back at the most sensible point in the sentence where its idea lives, or remove the extra copy, and leave the rest of that sentence and the passage as they are. Do not rewrite the passage or the paragraph to make room for the token. Never add a token that was not in the ORIGINAL.
 {{STYLE_RULES}}
 
