@@ -31,7 +31,52 @@
     intensityBalanced: document.getElementById('intensityBalanced'),
     intensityThorough: document.getElementById('intensityThorough'),
     bannedPhrases: document.getElementById('bannedPhrases'),
+    styleEditorSelect: document.getElementById('styleEditorSelect'),
+    styleInstruction: document.getElementById('styleInstruction'),
+    styleBannedPhrases: document.getElementById('styleBannedPhrases'),
+    styleContractionsRule: document.getElementById('styleContractionsRule'),
+    stylePunctuationRule: document.getElementById('stylePunctuationRule'),
+    styleEndingRule: document.getElementById('styleEndingRule'),
+    styleSymmetryRule: document.getElementById('styleSymmetryRule'),
+    styleExtraChecks: document.getElementById('styleExtraChecks'),
   };
+
+  // Editing one style at a time, but every style's edits are tracked
+  // locally so switching the style-editor dropdown never loses unsaved
+  // work — only Save (fieldsToConfig) or a fresh load discards it.
+  let currentStyles = {};
+  let currentStyleKey = 'academic';
+
+  function loadStyleIntoFields(key) {
+    const style = currentStyles[key] || {};
+    fields.styleInstruction.value = style.instruction || '';
+    fields.styleBannedPhrases.value = (style.bannedPhrases || []).join(', ');
+    fields.styleContractionsRule.value = style.contractionsRule || '';
+    fields.stylePunctuationRule.value = style.punctuationRule || '';
+    fields.styleEndingRule.value = style.endingRule || '';
+    fields.styleSymmetryRule.checked = !!style.symmetryRule;
+    fields.styleExtraChecks.value = (style.extraChecks || []).join('\n');
+  }
+
+  function commitFieldsIntoStyle(key) {
+    if (!currentStyles[key]) currentStyles[key] = {};
+    currentStyles[key] = {
+      ...currentStyles[key],
+      instruction: fields.styleInstruction.value,
+      bannedPhrases: fields.styleBannedPhrases.value.split(',').map((s) => s.trim()).filter(Boolean),
+      contractionsRule: fields.styleContractionsRule.value,
+      punctuationRule: fields.stylePunctuationRule.value,
+      endingRule: fields.styleEndingRule.value,
+      symmetryRule: fields.styleSymmetryRule.checked,
+      extraChecks: fields.styleExtraChecks.value.split('\n').map((s) => s.trim()).filter(Boolean),
+    };
+  }
+
+  fields.styleEditorSelect.addEventListener('change', () => {
+    commitFieldsIntoStyle(currentStyleKey);
+    currentStyleKey = fields.styleEditorSelect.value;
+    loadStyleIntoFields(currentStyleKey);
+  });
 
   function configToFields(config) {
     const keys = config.apiKeys || [];
@@ -55,10 +100,16 @@
     fields.intensityBalanced.value = config.intensity.balanced || '';
     fields.intensityThorough.value = config.intensity.thorough || '';
     fields.bannedPhrases.value = (config.bannedPhrases || []).join(', ');
+
+    currentStyles = JSON.parse(JSON.stringify(config.styles || {}));
+    currentStyleKey = fields.styleEditorSelect.value || 'academic';
+    loadStyleIntoFields(currentStyleKey);
   }
 
   function fieldsToConfig() {
+    commitFieldsIntoStyle(currentStyleKey);
     return {
+      styles: currentStyles,
       apiKeys: [fields.apiKey1, fields.apiKey2, fields.apiKey3, fields.apiKey4, fields.apiKey5]
         .map((f) => f.value.trim())
         .filter(Boolean),

@@ -170,14 +170,68 @@
 
         <section class="settings-card settings-card-wide">
           <h2>Stage B — Draft prompt</h2>
-          <p class="card-note">Writes fresh prose from the notes. Uses placeholders <code>{{INTENSITY_INSTRUCTION}}</code> and <code>{{BANNED_PHRASES}}</code> — keep both somewhere in the text.</p>
+          <p class="card-note">Writes fresh prose from the notes. Shared skeleton across every writing style — <code>{{STYLE_INSTRUCTION}}</code>, <code>{{CONTRACTIONS_RULE}}</code>, and <code>{{PUNCTUATION_RULE}}</code> are filled in per-style below; <code>{{INTENSITY_INSTRUCTION}}</code> and <code>{{BANNED_PHRASES}}</code> from Light/Balanced/Thorough and the selected style. Keep all five placeholders somewhere in the text.</p>
           <textarea id="promptDraft" class="prompt-textarea prompt-textarea-tall" spellcheck="false"></textarea>
         </section>
 
         <section class="settings-card settings-card-wide">
           <h2>Stage C — Guard prompt</h2>
-          <p class="card-note">Checks the draft against the original and fixes only rule violations. Uses the placeholder <code>{{BANNED_PHRASES}}</code>.</p>
+          <p class="card-note">Checks the draft against the original and fixes only rule violations. Shared skeleton — <code>{{BANNED_PHRASES}}</code> and <code>{{STYLE_RULES}}</code> (ending rule, symmetry check, extra checks) come from the selected style below.</p>
           <textarea id="promptGuard" class="prompt-textarea" spellcheck="false"></textarea>
+        </section>
+
+        <section class="settings-card settings-card-wide">
+          <h2>Writing styles</h2>
+          <p class="card-note">Stage B and C both pull from whichever style the author picks — a blog voice's AI-tells aren't an academic paper's or a legal memo's, so each style has its own voice instruction, banned-phrase list, and guard rules rather than sharing Author's. Pick a style below to view or edit it; switching styles keeps your unsaved edits to the one you're leaving.</p>
+
+          <label class="field">
+            <span>Editing style</span>
+            <select id="styleEditorSelect">
+              <option value="academic">Academic Research Paper</option>
+              <option value="author">Author (personal voice)</option>
+              <option value="legal">Formal Legal</option>
+              <option value="business">Business / Corporate Memo</option>
+              <option value="journalistic">Journalistic / News Feature</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Voice instruction <span class="tier-note">— fills {{STYLE_INSTRUCTION}} in the draft prompt above, in the expository branch</span></span>
+            <textarea id="styleInstruction" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
+          </label>
+
+          <label class="field">
+            <span>Banned phrases <span class="tier-note">— comma-separated, specific to this style, merged with your personal additions below</span></span>
+            <textarea id="styleBannedPhrases" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
+          </label>
+
+          <div class="param-row">
+            <label class="field field-compact">
+              <span>Contractions rule</span>
+              <input type="text" id="styleContractionsRule" />
+            </label>
+          </div>
+          <div class="param-row">
+            <label class="field field-compact">
+              <span>Punctuation rule</span>
+              <input type="text" id="stylePunctuationRule" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Ending rule <span class="tier-note">— guard-stage check on how the passage may end</span></span>
+            <textarea id="styleEndingRule" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
+          </label>
+
+          <label class="checkbox-field">
+            <input type="checkbox" id="styleSymmetryRule" />
+            <span>Guard against "not just X, it's Y" / perfectly symmetrical sentences</span>
+          </label>
+
+          <label class="field">
+            <span>Extra guard checks <span class="tier-note">— one per line, register-specific structural checks</span></span>
+            <textarea id="styleExtraChecks" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
+          </label>
         </section>
 
         <section class="settings-card settings-card-wide">
@@ -198,8 +252,8 @@
         </section>
 
         <section class="settings-card settings-card-wide">
-          <h2>Banned phrases</h2>
-          <p class="card-note">Comma-separated. Enforced by the draft and guard prompts as documented AI-writing tells.</p>
+          <h2>Your personal banned phrases</h2>
+          <p class="card-note">Comma-separated. Layered on top of whichever style's own list is active, for every style — use this for words <em>you</em> want banned everywhere, not a style-specific tell. Empty by default so it never contradicts a style's own list (e.g. "furthermore" is banned for Author but normal usage in Academic).</p>
           <textarea id="bannedPhrases" class="prompt-textarea prompt-textarea-short" spellcheck="false"></textarea>
         </section>
 
