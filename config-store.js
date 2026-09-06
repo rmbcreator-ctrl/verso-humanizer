@@ -198,7 +198,7 @@ Output only the reworded heading text. No #, no quotation marks, no preamble, no
   styles: {
     academic: {
       label: 'Academic Research Paper',
-      instruction: `Write as a researcher reporting findings to peers, not as a survey of a topic. Match the confidence of each claim to its evidence: state what the data supports flatly, and hedge only where a real limitation exists, naming it ("in samples under 200," "absent longitudinal data") rather than softening every sentence with "may" or "could." Let paragraphs take different shapes; not every one needs a topic sentence followed by three evenly weighted supports. Use precise field terms without glossing them for a lay reader, keep citations, figures, and numbers exactly where the notes place them, and use the first person plural if the notes do. Standard connectives (however, furthermore, thus, in contrast) are normal here. Stating a conclusion or implication is expected, but scope it to what was actually shown; do not inflate it into significance for the field.`,
+      instruction: `Write as a researcher reporting to peers who already know the field. Lead with the one finding that matters most, with its actual number or effect attached, not with a sentence that names the topic. Give that finding most of the paragraph; let the secondary results get a clause, a parenthesis, or one blunt sentence, and leave some points visibly lighter than others. Sentence length has to swing hard: a forty-word sentence stacked with qualifications, then "This did not replicate." Real papers are full of that. Reach for the field's own verbs and nouns (attenuates, recovers, the 2019 cohort, the pooled estimate) over safe generic ones (results, findings, impacts, plays a role), and name the variable rather than writing "the data." Hedge only at a real limitation and name it ("below n = 200," "absent longitudinal follow-up"). However, thus, and in contrast are fine mid-sentence; do not open consecutive sentences with them. Keep citations, figures, and numbers where the notes place them, use "we" if the notes do, and end on a conclusion scoped to what was shown or on the limitation itself.`,
       bannedPhrases: [
         'delve', 'nuanced', 'multifaceted', 'intricate', 'interplay', 'shed light on', 'sheds light',
         'underscore', 'underscores', 'highlight the importance', 'highlights the need',
@@ -213,10 +213,13 @@ Output only the reworded heading text. No #, no quotation marks, no preamble, no
       endingRule: 'The closing sentence may state a conclusion, result, or implication scoped to the claim just made, but it must not escalate into significance for the field, a transformation, or a change in "our understanding of X." Also treat a stock closer like "further research is needed" or "future work should address this" as a violation if it is the passage\'s final sentence with nothing more specific attached.',
       symmetryRule: true,
       extraChecks: [
-        'No more than two consecutive sentences may open with the same hedge word (e.g. "may," "might," "could," "suggests") — vary the hedge or drop it.',
+        'No two consecutive sentences may open with the same word, a hedge (may, might, could, suggests, appears), or a connective adverb (however, furthermore, moreover, thus, in contrast, additionally). Rework one of them.',
+        'No more than two sentences in a row may be of similar length (within roughly five words of each other). Split one or fuse two; do not pad.',
+        'A sentence opening on "The results," "The findings," or "The data" followed by show, suggest, or indicate is allowed once in the passage. Elsewhere, name the specific measure or variable instead.',
+        'No three consecutive paragraphs may be within roughly twenty percent of the same length. Fold one into a neighbor or split it.',
       ],
-      contractionsRule: 'Avoid contractions; write out full forms throughout.',
-      punctuationRule: 'Semicolons are natural in this register — up to three in the passage are fine. Keep em dashes to at most one; prefer commas or parentheses for asides.',
+      contractionsRule: 'Contractions do not belong in this register, but do not compensate by stiffening everything else; a plain eight-word sentence is more academic than a long formal one.',
+      punctuationRule: 'Semicolons belong here, but use them for the blunt join ("n was 41; two were excluded"), not the "X; however, Y" construction more than once. Parentheses for asides, placed unevenly rather than one per paragraph. At most one em dash.',
     },
 
     author: {
@@ -241,7 +244,7 @@ Output only the reworded heading text. No #, no quotation marks, no preamble, no
 
     legal: {
       label: 'Formal Legal',
-      instruction: `Write as a practitioner who has already done the analysis and is reporting it: rule, application, conclusion, in that order, with no throat-clearing. Be terse. Use the defined terms exactly and consistently (the Agreement, the Buyer, Section 4.2) and never swap in a synonym for one. State conclusions directly ("The claim is likely time-barred"), and when hedging, tie the hedge to a specific condition or open fact, not a general caution. Name the authority when one applies. Vary sentence length the way real memoranda do: one long, carefully qualified sentence followed by a short flat one. Omit disclaimers, invitations to consult counsel, and generic warnings about complexity or the importance of compliance. Passive voice is acceptable where the actor is legally irrelevant.`,
+      instruction: `Write as a practitioner reporting an analysis already done. Open on the dispositive point, the holding, the deadline, or the term that controls, not on background. Then spend the passage unevenly: the issue that decides the matter gets the long, qualified treatment; the others get a sentence or a clause, and a settled point can be dismissed in five words. Use the defined terms exactly (the Agreement, the Buyer, Section 4.2) and never a synonym. Reach for the precise legal verb (tolls, vests, accrues, is barred, survives) over the generic (affects, applies, is relevant). Let one sentence run long with nested conditions, then follow it with something flat and short. Hedge only against a named open fact or an unresolved condition. Passive voice where the actor is legally irrelevant. No disclaimers, no invitations to consult counsel, no warnings about complexity. End on the operative conclusion, or on the next step if the notes actually contain one.`,
       bannedPhrases: [
         'legal landscape', 'landscape', 'navigate', 'navigating the complexities', 'complexities',
         'it is crucial', 'it is essential', 'it is imperative', 'it is important to note',
@@ -258,6 +261,7 @@ Output only the reworded heading text. No #, no quotation marks, no preamble, no
       symmetryRule: true,
       extraChecks: [
         'A defined term, once introduced, must not be referred to by a different noun later in the passage — check for and fix any such drift.',
+        'No two consecutive sentences may open with the same word or with a connective (however, accordingly, therefore, further, moreover). Rework one of them.',
       ],
       contractionsRule: 'Contractions are prohibited; use full forms throughout.',
       punctuationRule: 'Em dashes are rare in legal drafting — cap at one, and zero is often better. Semicolons are normal inside an enumerated list; outside a list, cap at one.',
@@ -307,7 +311,7 @@ Output only the reworded heading text. No #, no quotation marks, no preamble, no
       symmetryRule: true,
       extraChecks: [
         'The first sentence must not be a thesis or topic statement — it must contain a proper noun, a number, or a sensory detail.',
-        'Flag any paragraph longer than three sentences.',
+        'Flag any passage where every paragraph is the same length in sentences; at least one paragraph should be a single sentence and at most one may run to four or five.',
       ],
       contractionsRule: 'Contractions are natural inside quotations and fine, if sparing, in narration — match AP-style practice.',
       punctuationRule: 'Em dashes are used more freely in features — up to two are fine. Semicolons are almost never used in news copy — cap at zero.',
